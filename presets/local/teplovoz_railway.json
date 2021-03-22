@@ -1,0 +1,53 @@
+{
+    "view cam": false,
+    "model": {
+        "checkpoint1": "./weights/teplovoz.pt", 
+        "checkpoint": "best.pt",
+        "gpu_id": 0,
+        "batch size": 1,
+        "half": true
+    },
+    "algoritm setting": {
+        "min score": 0.3, 
+        "overlap": 0.5,
+        "line heght": 64,
+        "classes": ["double central rails", "double left rails", "double right rails", "central rails", "left rails",
+            "right rails", "half left rails", "half right rails", "switch right back", "switch left back", "switch right front",
+            "switch left front", "switch", "left crossing", "right crossing", "double cross"]
+    },
+    "work resolution": {
+        "width": 1280, 
+        "height": 720
+    },
+    "Scena": {
+        "VideoFile": "/home/evgeny/test/test/Движение в запрещенном направлении/UMD_2_TOP.avi",
+        "VideoFile1": "/home/evgeny/work/project/lost_thing/ТЕСТ/Движение в запрещенном направлении/UMD_4_TOP.avi",
+        "Class pipeline": [
+            {
+                "class":"Scenario",
+                "Scenario name":"Train show",
+                "Class pipeline":[
+                    {
+                        "class":"Train_sort",
+                        "max len history": 20
+                    }
+                ]                                                           
+            },
+            {
+                "class":"Scenario1",
+                "Scenario name":"Detection Line",
+                "Class pipeline":[
+                    {
+                        "class":"Multi_lines",
+                        "calc point": "0.5, 0.5",
+                        "Offset": [],
+                        "line":{
+                            "p1": "0,0",
+                            "p2": "0,0"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
