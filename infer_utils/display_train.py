@@ -13,7 +13,6 @@ from iou import *
 from counter import *
 from memory import *
 
-
 class display_train(object):
     def __init__(self, view_cam=False, video_loader=None, delay=0):
         # delay - Управление режимом вывода. 1 видеорежим, 0 покадровый режим
@@ -117,7 +116,7 @@ class display_train(object):
     ##########################################
     def get_norm_box(self, boxes, class_names):
         boxes = boxes[::-1]
-
+        # print(int(boxes[0][0][0]))
         top_list, bottom_list = self.video_loader.get_top_bottom_list()
         top_list, bottom_list = top_list[::-1], bottom_list[::-1]
 
@@ -130,7 +129,7 @@ class display_train(object):
             for box in boxes[i]:
                 box_class = int(box[5])
                 class_name = class_names[box_class]
-                res_box = [box[0].item(), y1, box[2].item(), y2, class_name]
+                res_box = [box[0].item(), y1, box[2].item(), y2, int(box[5])]
                 norm_boxes.append(res_box)
 
         return norm_boxes
@@ -146,10 +145,8 @@ class display_train(object):
         inframe_counter = 0
 
         df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
-        # print(df)
         filter_rails = df['class'] == class_rails
         central_rails = df.loc[filter_rails]
-        # print("only center",central_rails)
         y0_count = central_rails['y0'].value_counts(sort=False)
         unique_y0_filter = y0_count.values == 1
         unique_y0_count = y0_count.loc[unique_y0_filter]
@@ -174,7 +171,6 @@ class display_train(object):
     def init_current_rails(self, norm_boxes, class_rails, output_image):
         inframe_counter = 0
         # df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
-        # print(df)
         # class_rails = 'central rails'
         filter_unique_central_rails = self.class_filter(norm_boxes, class_rails)
         current_box = []
@@ -186,14 +182,14 @@ class display_train(object):
             if inframe_counter < 5:
                 if overlap >= Counter.overlap:
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
                     inframe_counter += 1
                     current_box = box
                     Memory.current_frame_rails.append(box)
 
                 else:
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 100, 255), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 100, 255), thickness=-1)
                     inframe_counter = 0
 
                     # break
@@ -202,7 +198,7 @@ class display_train(object):
                 # инициализация
                 if overlap >= Counter.overlap:
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
                     Memory.current_frame_rails.append(box)
                     inframe_counter += 1
                     current_box = box
@@ -212,12 +208,12 @@ class display_train(object):
                     return 1
                 else:
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
                     Memory.current_frame_rails.append(box)
 
             else:
                 # uncomment
-                # cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
+                cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
                 return 0
 
     ###########################################################################
@@ -237,15 +233,15 @@ class display_train(object):
             cx = self.box_center_x(box)
             cy = self.box_center_y(box)
             # uncomment
-            # cv2.circle(output_image, (cx, cy), 20, (255, 0, 155), thickness=-1)
+            cv2.circle(output_image, (cx, cy), 20, (255, 0, 155), thickness=-1)
 
             if cx in range(int(Memory.init_box_detected[0]), int(Memory.init_box_detected[2])):
                 Memory.previous_box = box
                 if overlap >= Counter.overlap:
-                    print("OVERLAP", overlap)
+
                     # Memory.previous_box = box
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
                     Memory.current_frame_rails.append(box)
 
                     # if box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
@@ -259,11 +255,9 @@ class display_train(object):
                     #     Memory.between_frame_switch_front += 1
                     #     Memory.init_box_detected = box
                     #     Counter.between_frame_counter += 1
-                    #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
                     #
                     # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
                     #     Memory.init_box_detected = box
-                    #     # print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
                     #
                     # elif box[4] == 'switch left front':
                     #     Memory.previous_switch_left_front += 1
@@ -273,7 +267,6 @@ class display_train(object):
                     #
                     # elif box[4] == 'central rails':
                     #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-                    #         # print("INIT OUT")
                     #         Memory.previous_switch_left_front = 0
                     #         Memory.previous_switch_right_front = 0
                     #
@@ -309,19 +302,14 @@ class display_train(object):
                     #     Memory.init_box_detected = box
                     #     Counter.between_frame_counter += 1
                     #
-                    #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
-                    #     print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
-                    #
                     # elif box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
                     #     Memory.previous_switch_right_front += 1
                     #     Memory.between_frame_switch_front += 1
                     #     Memory.init_box_detected = box
                     #     Counter.between_frame_counter += 1
-                    #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
                     #
                     # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
                     #     Memory.init_box_detected = box
-                    #     # print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
                     #
                     # elif box[4] == 'switch left front':
                     #     Memory.previous_switch_left_front += 1
@@ -331,7 +319,6 @@ class display_train(object):
                     #
                     # elif box[4] == 'central rails':
                     #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-                    #         # print("INIT OUT")
                     #         Memory.previous_switch_left_front = 0
                     #         Memory.previous_switch_right_front = 0
                     #
@@ -349,14 +336,14 @@ class display_train(object):
 
                 else:
                     # uncomment
-                    # cv2.circle(output_image, (cx, cy), 40, (0, 255, 200), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 40, (0, 255, 200), thickness=-1)
                     Memory.current_frame_rails.append(box)
                     # Memory.previous_box = box
 
             else:
                 pass
                 # uncomment
-                # cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
+                cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
 
     ###########################################################################
     # current rails in absolute coordinates #########################
@@ -364,13 +351,13 @@ class display_train(object):
 
     def show_current_frame(self, normboxes, class_names, window_name='current'):
 
-        Memory.current_frame_rails = []
+        # Memory.current_frame_rails = []
         # normboxes = normboxes[::-1]
         top_list, bottom_list = self.video_loader.get_top_bottom_list()
         # top_list, bottom_list = top_list[::-1], bottom_list[::-1]
         output_image = self.video_loader.get_image()
         no_boxes = True
-
+        timer1 = time.time()
         # normboxes = self.init_current_rails(normboxes, output_image)
         # self.init_current_rails(normboxes, output_image)
         if not Memory.current_rails_detected:
@@ -378,14 +365,17 @@ class display_train(object):
         else:
             self.continue_current_rails(normboxes, output_image)
 
-
-        normboxes = Memory.current_frame_rails
+        # normboxes = Memory.current_frame_rails
+        # print(time.time() - timer1)
 
         for box in normboxes:
+            box_class = int(box[4])
+            class_name = class_names[box_class]
             ###############
             # вывод
             ###############
-            box[4] = "current rails"
+            #uncomment
+            # box[4] = "current rails"
 
             if box[4] == "current rails":
                 display_box(output_image, [box[0], box[1],
@@ -394,18 +384,18 @@ class display_train(object):
                 cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
                             self.font, 0.5, (0, 255, 0), thickness=2)
             else:
-                box_class = [
-                    "double central rails", "double left rails", "double right rails", "central rails", "left rails",
-                    "right rails", "half left rails", "half right rails", "switch right back", "switch left back",
-                    "switch right front",
-                    "switch left front", "switch", "left crossing", "right crossing", "double cross"
-                ]
+                # box_class = [
+                #     "double central rails", "double left rails", "double right rails", "central rails", "left rails",
+                #     "right rails", "half left rails", "half right rails", "switch right back", "switch left back",
+                #     "switch right front",
+                #     "switch left front", "switch", "left crossing", "right crossing", "double cross"
+                # ]
 
                 display_box(output_image, [box[0], box[1], box[2], box[3]],
-                            color=self.class_colours[box_class.index(box[4])], thickness=3)
-                text = box[4]
+                            color=self.class_colours[box_class], thickness=3)
+                text = class_names[box_class]
                 cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
-                            self.font, 0.5, self.class_colours[box_class.index(box[4])], thickness=2)
+                            self.font, 0.5, self.class_colours[box_class], thickness=2)
 
         return output_image
 
@@ -436,15 +426,13 @@ class display_train(object):
     #         #if toplist[i + 1] == bottom_list[i] & abs(boxes[i][0] - boxes[i + 1][0]) & abs(boxes[i][3] - boxes[i + 1][4])
     #         cx = temp[0].item() + int((temp[2].item() - temp[0].item())/2)
     #         cy = y1 + int((y2-y1)/2)
-    #         #print(class_name)
 
     #         #if class_name == "central rails" & inframe_counter >= 5:
     #         #if class_name == "central rails":
 
     #             # inframe_counter += 1
     #             #counter.between_frame_counter += 1
-    #             # print("inframe", inframe_counter)
-    #             # print("between_frame", counter.between_frame_counter)
+
 
     #             #between_frame_counter += 1
 
@@ -464,6 +452,45 @@ class display_train(object):
     # cv2.waitKey(0)
 
     # return output_image
+    def make_norm_data(self, norm_boxes, frame_name, class_names, window_name='display'):
+        output_image = self.video_loader.get_image()
+        no_boxes = True
+
+        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class', 'num_class'])
+        # pred_lists = []
+        indexes = 0
+        for box in norm_boxes:
+
+            # pred_list = [class_names[box_class], cx, cy, indexes]
+            # pred_lists.append(pred_list)
+            pred_list = box
+            df.loc[indexes] = pred_list
+
+            if box[4] == "current rails":
+                display_box(output_image, [box[0], box[1],
+                                           box[2], box[3]], color=(0, 255, 0), thickness=3)
+                text = box[4]
+                cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
+                            self.font, 0.5, (0, 255, 0), thickness=2)
+            else:
+                box_class = [
+                    "double central rails", "double left rails", "double right rails", "central rails",
+                    "left rails",
+                    "right rails", "half left rails", "half right rails", "switch right back", "switch left back",
+                    "switch right front",
+                    "switch left front", "switch", "left crossing", "right crossing", "double cross"
+                ]
+
+                display_box(output_image, [box[0], box[1], box[2], box[3]],
+                            color=self.class_colours[box_class.index(box[4])], thickness=3)
+                text = box[4]
+                cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
+                            self.font, 0.5, self.class_colours[box_class.index(box[4])], thickness=2)
+
+        cv2.imwrite('video/' + frame_name + '.png', output_image)
+        df.to_csv('video2/' + frame_name + '.csv', index_label='num')
+        # cv2.imshow(window_name, output_image)
+        # cv2.waitKey(0)
 
     def make_data(self, boxes, frame_name, class_names, window_name='display'):
         top_list, bottom_list = self.video_loader.get_top_bottom_list()

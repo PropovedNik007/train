@@ -161,8 +161,8 @@ class LinearMomentiumFilter(object):
 class LinearBoxTracker(object):
   count = 0
   def __init__(self,bbox, frames):
-    self.filter = LinearFilter(bbox[:4]) 
-    #self.filter = LinearMomentiumFilter(bbox[:4]) 
+    # self.filter = LinearFilter(bbox[:4])
+    self.filter = LinearMomentiumFilter(bbox[:4])
     #self.filter = KalmanFilter(bbox[:4]) 
     
     self.time_since_update = 0

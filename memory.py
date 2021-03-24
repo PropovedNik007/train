@@ -1,14 +1,19 @@
 
 class Memory(object):
+    # проведена ли уже иициализация пути
     current_rails_detected = False
+    # начальный инициализированный путь
     init_box_detected = []
+    # инициализированные до этого пути
     previous_init_boxes = []
-    current_frame_vector = []
-    current_frame_vector_line = []
+
+    previous_frame_boxes = []
+
     current_class = ''
     init_box_waiter = 0
+    # предидущий бокс в кадре
     previous_box = []
-
+    # текущие пути в кадре
     current_frame_rails = []
 
     between_frame_counter = 0

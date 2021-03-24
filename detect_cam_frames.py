@@ -11,10 +11,15 @@ import threading
 import time
 
 from infer_utils.data_loader import video_loader
-# from infer_utils.display_train import display_train
+from infer_utils.display_train import display_train
 # from infer_utils.display_train_old import display_train
-from infer_utils.display_train_new import display_train
+# from infer_utils.display_train_new import display_train
+# from infer_utils.display_train_kmeans import display_train
+# from infer_utils.display_train_numpy import display_train
+# from infer_utils.display_train_overlap import display_train
+# from infer_utils.display_train_pandas import display_train
 from infer_utils.video_writer import *
+from main import analytics
 from process_classes.Class_pipeline import Class_pipeline
 from tracker_utils import *
 from yolov5.models.experimental import attempt_load
@@ -211,16 +216,19 @@ class Task(threading.Thread):
                 # sort_predictions = display.sort_boxes(boxes,self.opt["classes"])
                 # display.show_boxes(sort_predictions, self.opt["classes"])
 
-                # display.make_data(boxes, frame_name, self.opt["classes"])
                 #
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"]) #unblock
 
                 norm_boxes = display.get_norm_box(boxes, self.opt["classes"])
-                norm_boxes_num = display.get_norm_box_num(boxes)
+                output_boxes = analytics(norm_boxes)
+                # display.make_norm_data(norm_boxes, frame_name, self.opt["classes"])
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"])
                 output_image = display.show_current_frame(norm_boxes, self.opt["classes"])
 
+                output_image2 = display.show_current_frame(output_boxes, self.opt["classes"])
+
                 cv2.imshow('window_name', output_image)
+                cv2.imshow('3', output_image2)
                 cv2.waitKey(0)
 
                 # cv2.imshow('all', output_image1)
@@ -346,9 +354,10 @@ if __name__ == '__main__':
     # opt["VideoFile"] = "/home/evgeny/work/project/lost_thing/ТЕСТ/Движение в запрещенном направлении/UMD_2_TOP.avi"
 
     # opt["VideoFile"] = "video_teplovoz/6.mp4"
-    # opt["VideoFile"] = "video_teplovoz/2.mp4"
+    # opt["VideoFile"] = "video_teplovoz/123.mp4"
+    opt["VideoFile"] = "video_teplovoz/1.mp4"
 
-    opt["VideoFile"] = "video_teplovoz/frontal1.mp4"
+    # opt["VideoFile"] = "video_teplovoz/frontal1.mp4"
     # "/home/evgeny/work/project/lost_thing/ТЕСТ/Проход в запрещенную зону/CZ_LO_3_SIDE.avi",
     # opt["VideoFile"] = "/home/evgeny/work/project/video/teplovoz/nuc6/video/18/16/20200916-165800_1280x720_nuc6_cam18_motion.avi"
 

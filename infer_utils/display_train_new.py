@@ -135,7 +135,7 @@ class display_train(object):
             for box in boxes[i]:
                 box_class = int(box[5])
                 class_name = class_names[box_class]
-                res_box = [box[0].item(), y1, box[2].item(), y2, class_name, box[5].item()]
+                res_box = [box[0].item(), y1, box[2].item(), y2, class_name, int(box[5].item())]
                 norm_boxes.append(res_box)
 
         return norm_boxes
@@ -150,7 +150,7 @@ class display_train(object):
         """
         inframe_counter = 0
 
-        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
+        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class', 'num_class'])
         # print(df)
         filter_rails = df['class'] == class_rails
         central_rails = df.loc[filter_rails]
@@ -221,7 +221,8 @@ class display_train(object):
                 return 0
 
     def knn_filter(self, norm_boxes):
-        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
+        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class', 'num_class'])
+        df = df[['x0', 'y0', 'x1', 'y1', 'num_class']]
         y = df['x0']
         X_train, X_holdout, y_train, y_holdout = train_test_split(df.values, y, test_size=0.3, random_state=17)
 
@@ -232,12 +233,19 @@ class display_train(object):
         accuracy_score(y_holdout, knn_pred)
         print("accuracy", accuracy_score)
 
+
     def k_means_filter(self, norm_boxes, box):
-        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
-        print(df)
-        kmeans = KMeans(n_clusters=3, random_state=0).fit(df.values)
+        df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class', 'num_class'])
+        df = df[['x0', 'y0', 'x1', 'y1', 'num_class']]
+        print(df.values)
+        # df.values = df.values.reshape(-1, 1)
+        kmeans = KMeans(n_clusters=2, random_state=0).fit(df.values)
+
         print(kmeans.labels_)
-        print(kmeans.predict([box[0], box[1]], [box[2], box[3]]))
+        kmeans.predict(df.values)
+        print(kmeans.cluster_centers_)
+        points = kmeans.fit_predict(df.values)
+        print("points", points)
 
     def init_continue_rails(self, norm_boxes, class_rails, output_image):
 
@@ -294,100 +302,93 @@ class display_train(object):
         inframe_counter = 0
         current_box = []
         current_rails = []
-        for i, box in enumerate(norm_boxes):
-            box_class = [
-                "double central rails", "double left rails", "double right rails", "central rails", "left rails",
-                "right rails", "half left rails", "half right rails", "switch right back", "switch left back",
-                "switch right front",
-                "switch left front", "switch", "left crossing", "right crossing", "double cross"
-            ]
-            box[4] = box_class.index(box[4])
-            print(box[4])
-            self.k_means_filter(norm_boxes_num, box)
-            Memory.current_frame_vector = Memory.init_box_detected
-            Memory.previous_init_boxes.append(box)
+        for i, boxes in enumerate(norm_boxes):
+            for j, box in enumerate(boxes):
 
-            overlap = area(norm_boxes[i], Memory.previous_box)
+                Memory.current_frame_vector = Memory.init_box_detected
+                Memory.previous_init_boxes.append(box)
 
-            cx = self.box_center_x(box)
-            cy = self.box_center_y(box)
-            cv2.circle(output_image, (int(Memory.init_box_detected[0]), cy), 10, (255, 0, 155), thickness=-1)
-            cv2.circle(output_image, (int(Memory.init_box_detected[2]), cy), 10, (255, 0, 155), thickness=-1)
-            cv2.line(output_image, (cx, cy), (cx, 0), (0, 255, 0), 2)
+                overlap = area(norm_boxes[i], Memory.previous_box)
 
-            if cx in range(int(Memory.current_frame_vector[0]), int(Memory.current_frame_vector[2])):
-                if self.init_continue_rails(norm_boxes, box[4], output_image) == 1:
-                    pass
-                    # Memory.current_frame_vector_line.append(box)
-                    # if len(Memory.current_frame_vector_line) >= 1:
-                    #     cv2.line(output_image, (int(Memory.current_frame_vector_line[0][0]),
-                    #                             int(Memory.current_frame_vector_line[0][1])),
-                    #              (int(Memory.current_frame_vector_line[-1][0]),
-                    #               int(Memory.current_frame_vector_line[-1][1])), (0, 255, 0), 2)
-                    #     cv2.line(output_image, (int(Memory.current_frame_vector_line[0][2]),
-                    #                             int(Memory.current_frame_vector_line[0][3])),
-                    #              (int(Memory.current_frame_vector_line[-1][2]),
-                    #               int(Memory.current_frame_vector_line[-1][3])), (0, 255, 0), 2)
-                    # Memory.init_box_detected = box
-                Memory.previous_box = box
-                if overlap >= Counter.overlap:
-                    # if self.init_continue_rails(norm_boxes, box[4], output_image) == 1:
-                    #     Memory.init_box_detected = box
+                cx = self.box_center_x(box)
+                cy = self.box_center_y(box)
+                cv2.circle(output_image, (int(Memory.init_box_detected[0]), cy), 10, (255, 0, 155), thickness=-1)
+                cv2.circle(output_image, (int(Memory.init_box_detected[2]), cy), 10, (255, 0, 155), thickness=-1)
+                cv2.line(output_image, (cx, cy), (cx, 0), (0, 255, 0), 2)
+
+                if cx in range(int(Memory.current_frame_vector[0]), int(Memory.current_frame_vector[2])):
+                    if self.init_continue_rails(norm_boxes, box[4], output_image) == 1:
+                        pass
+                        # Memory.current_frame_vector_line.append(box)
+                        # if len(Memory.current_frame_vector_line) >= 1:
+                        #     cv2.line(output_image, (int(Memory.current_frame_vector_line[0][0]),
+                        #                             int(Memory.current_frame_vector_line[0][1])),
+                        #              (int(Memory.current_frame_vector_line[-1][0]),
+                        #               int(Memory.current_frame_vector_line[-1][1])), (0, 255, 0), 2)
+                        #     cv2.line(output_image, (int(Memory.current_frame_vector_line[0][2]),
+                        #                             int(Memory.current_frame_vector_line[0][3])),
+                        #              (int(Memory.current_frame_vector_line[-1][2]),
+                        #               int(Memory.current_frame_vector_line[-1][3])), (0, 255, 0), 2)
+                        # Memory.init_box_detected = box
                     Memory.previous_box = box
+                    if overlap >= Counter.overlap:
+                        # if self.init_continue_rails(norm_boxes, box[4], output_image) == 1:
+                        #     Memory.init_box_detected = box
+                        Memory.previous_box = box
 
-                    cv2.circle(output_image, (cx, cy), 5, (255, 255, 255), thickness=-1)
-                    Memory.current_frame_rails.append(box)
+                        cv2.circle(output_image, (cx, cy), 5, (255, 255, 255), thickness=-1)
+                        Memory.current_frame_rails.append(box)
 
+                    else:
+                        cv2.circle(output_image, (cx, cy), 5, (0, 255, 200), thickness=-1)
+                        Memory.current_frame_rails.append(box)
+                        # Memory.previous_box = box
+
+                    # if box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
+                    #     Memory.previous_switch_right_front += 1
+                    #     Memory.between_frame_switch_front += 1
+                    #     Memory.init_box_detected = box
+                    #     Counter.between_frame_counter += 1
+                    #
+                    #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
+                    #     print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
+                    #
+                    # elif box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
+                    #     Memory.previous_switch_right_front += 1
+                    #     Memory.between_frame_switch_front += 1
+                    #     Memory.init_box_detected = box
+                    #     Counter.between_frame_counter += 1
+                    #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
+                    #
+                    # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
+                    #     Memory.init_box_detected = box
+                    #     # print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
+                    #
+                    # elif box[4] == 'switch left front':
+                    #     Memory.previous_switch_left_front += 1
+                    #
+                    # elif box[4] == 'left crossing' and Memory.previous_switch_left_front >= 10:
+                    #     Memory.init_box_detected = box
+                    #
+                    # elif box[4] == 'central rails':
+                    #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
+                    #         # print("INIT OUT")
+                    #         Memory.previous_switch_left_front = 0
+                    #         Memory.previous_switch_right_front = 0
+                    #
+                    # elif box[4] == 'switch' and self.init_current_rails(norm_boxes, box[4], output_image) == 1:
+                    #     # Memory.previous_switch_left_front = 0
+                    #     # Memory.previous_switch_right_front = 0
+                    #     pass
+                    #
+                    # elif box[4] == 'double central rails':
+                    #     if Memory.previous_switch >= 10:
+                    #         continue
+                    #     else:
+                    #         Memory.previous_switch_left_front = 0
+                    #         Memory.previous_switch_right_front = 0
                 else:
-                    cv2.circle(output_image, (cx, cy), 5, (0, 255, 200), thickness=-1)
-                    Memory.current_frame_rails.append(box)
-                    # Memory.previous_box = box
-
-                # if box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-                #     Memory.previous_switch_right_front += 1
-                #     Memory.between_frame_switch_front += 1
-                #     Memory.init_box_detected = box
-                #     Counter.between_frame_counter += 1
-                #
-                #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
-                #     print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
-                #
-                # elif box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-                #     Memory.previous_switch_right_front += 1
-                #     Memory.between_frame_switch_front += 1
-                #     Memory.init_box_detected = box
-                #     Counter.between_frame_counter += 1
-                #     # print("ПОВОРОТ НАПРАВО", Counter.between_frame_counter)
-                #
-                # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
-                #     Memory.init_box_detected = box
-                #     # print("ПОВОРОТ НАПРАВО", Memory.previous_switch_right_front)
-                #
-                # elif box[4] == 'switch left front':
-                #     Memory.previous_switch_left_front += 1
-                #
-                # elif box[4] == 'left crossing' and Memory.previous_switch_left_front >= 10:
-                #     Memory.init_box_detected = box
-                #
-                # elif box[4] == 'central rails':
-                #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-                #         # print("INIT OUT")
-                #         Memory.previous_switch_left_front = 0
-                #         Memory.previous_switch_right_front = 0
-                #
-                # elif box[4] == 'switch' and self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-                #     # Memory.previous_switch_left_front = 0
-                #     # Memory.previous_switch_right_front = 0
-                #     pass
-                #
-                # elif box[4] == 'double central rails':
-                #     if Memory.previous_switch >= 10:
-                #         continue
-                #     else:
-                #         Memory.previous_switch_left_front = 0
-                #         Memory.previous_switch_right_front = 0
-            else:
-                cv2.circle(output_image, (cx, cy), 5, (0, 0, 255), thickness=-1)
+                    cv2.circle(output_image, (cx, cy), 5, (0, 0, 255), thickness=-1)
 
     ###########################################################################
     # current rails in absolute coordinates #########################
