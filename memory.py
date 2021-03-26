@@ -1,5 +1,6 @@
 
 class Memory(object):
+    between_frame_counter = 0
     # проведена ли уже иициализация пути
     current_rails_detected = False
     # начальный инициализированный путь

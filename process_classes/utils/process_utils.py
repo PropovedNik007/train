@@ -52,7 +52,7 @@ def display_box(im, box, color, thickness =1):
 #     im_n = np.array(im.permute(1,2,0).cpu().numpy()*255, dtype = "int8")
 #     im_n = np.ascontiguousarray(im_n)
     cv2.rectangle(im, (int(box[0]), int(box[1])),
-        (int(box[2]),int(box[3])), color, thickness =1)
+        (int(box[2]), int(box[3])), color, thickness=thickness)
     
 
 def display_track(im, tr, color):

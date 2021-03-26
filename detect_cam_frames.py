@@ -6,6 +6,7 @@
 import json
 import os
 import pickle
+import random
 import sys
 import threading
 import time
@@ -21,6 +22,7 @@ from infer_utils.display_train import display_train
 from infer_utils.video_writer import *
 from main import analytics
 from process_classes.Class_pipeline import Class_pipeline
+from process_classes.utils import display_box
 from tracker_utils import *
 from yolov5.models.experimental import attempt_load
 from yolov5.utils.general import non_max_suppression  # , non_max_suppression1
@@ -156,8 +158,11 @@ class Task(threading.Thread):
         ############# display settings ################
         # display = frame_display_multi_line(self.opt["view_cam"], self.opt["loader"])
         display = display_train(self.opt["view_cam"], self.opt["loader"])
+        display1 = display_train(self.opt["view_cam"], self.opt["loader"])
+
         ###############################################
         display.set_str_class_colors(len(self.opt["classes"]))
+        display1.set_str_class_colors(len(self.opt["classes"]))
         ################################################################################################3
         # self.opt["loader"].set_frame(8000)
 
@@ -176,8 +181,10 @@ class Task(threading.Thread):
             if self.opt["view_cam"]:
                 if self.ret_opt["frame_counter"] < 00:
                     display.set_view_mode(False)
+                    display1.set_view_mode(False)
                 else:
                     display.set_view_mode(True)
+                    display1.set_view_mode(True)
 
             if self.ret_opt["frame_counter"] % 1000 < self.opt["batch_size"]:
                 print(self.ret_opt["frame_counter"])
@@ -220,15 +227,34 @@ class Task(threading.Thread):
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"]) #unblock
 
                 norm_boxes = display.get_norm_box(boxes, self.opt["classes"])
-                output_boxes = analytics(norm_boxes)
+
                 # display.make_norm_data(norm_boxes, frame_name, self.opt["classes"])
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"])
+
+                # prev version
+                # output_image = display.show_current_frame(norm_boxes, self.opt["classes"])
+                # output_image2 = self.video_loader.get_image()
                 output_image = display.show_current_frame(norm_boxes, self.opt["classes"])
-
-                output_image2 = display.show_current_frame(output_boxes, self.opt["classes"])
-
+                # class_colours = []
+                # for i in range(20):
+                #     class_colours.append((random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+                # for box in output_boxes:
+                #     box_class = int(box[4])
+                #     if box[4] == "current rails":
+                #         display_box(output_image, [box[0], box[1],
+                #                                    box[2], box[3]], color=(0, 255, 0), thickness=3)
+                #         text = box[4]
+                #         cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
+                #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), thickness=2)
+                #     else:
+                #         display_box(output_image, [box[0], box[1], box[2], box[3]],
+                #                     color=class_colours[box_class], thickness=3)
+                #         text = self.opt["classes"][box_class]
+                #         cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
+                #                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, class_colours[box_class], thickness=2)
+                #
+                # cv2.imshow('window_name', output_image)
                 cv2.imshow('window_name', output_image)
-                cv2.imshow('3', output_image2)
                 cv2.waitKey(0)
 
                 # cv2.imshow('all', output_image1)
