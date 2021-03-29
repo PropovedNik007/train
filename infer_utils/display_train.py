@@ -375,28 +375,11 @@ class display_train(object):
             ###############
             # вывод
             ###############
-            #uncomment
-            # box[4] = "current rails"
-
-            if box[4] == "current rails":
-                display_box(output_image, [box[0], box[1],
-                                           box[2], box[3]], color=(0, 255, 0), thickness=1)
-                text = box[4]
-                cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
-                            self.font, 0.5, (0, 255, 0), thickness=2)
-            else:
-                # box_class = [
-                #     "double central rails", "double left rails", "double right rails", "central rails", "left rails",
-                #     "right rails", "half left rails", "half right rails", "switch right back", "switch left back",
-                #     "switch right front",
-                #     "switch left front", "switch", "left crossing", "right crossing", "double cross"
-                # ]
-
-                display_box(output_image, [box[0], box[1], box[2], box[3]],
-                            color=self.class_colours[box_class], thickness=1)
-                text = class_names[box_class]
-                cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
-                            self.font, 0.5, self.class_colours[box_class], thickness=2)
+            display_box(output_image, [box[0], box[1], box[2], box[3]],
+                        color=self.class_colours[box_class], thickness=1)
+            text = class_names[box_class]
+            cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
+                        self.font, 0.5, self.class_colours[box_class], thickness=2)
 
         for box in filtred_boxes:
 

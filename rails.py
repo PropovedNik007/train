@@ -13,4 +13,5 @@ class Rails(Line):
         self.box_class = box[4]
         self.previous = previous
 
-
+class CentralRails(Rails):
+    pass
