@@ -128,10 +128,20 @@ class display_train(object):
             y1 = top_list[i]
             y2 = bottom_list[i]
             for box in boxes[i]:
-                box_class = int(box[5])
-                class_name = class_names[box_class]
-                res_box = [box[0].item(), y1, box[2].item(), y2, int(box[5])]
-                norm_boxes.append(res_box)
+                if int(box[5]) == 0:
+                    # right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, "reserve 1"]
+                    right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, 16]
+                    # right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, int(box[5])]
+                    # left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, "reserve 2"]
+                    left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, 17]
+                    # left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, int(box[5])]
+                    norm_boxes.append(right_double_box)
+                    norm_boxes.append(left_double_box)
+                else:
+                    box_class = int(box[5])
+                    class_name = class_names[box_class]
+                    res_box = [box[0].item(), y1, box[2].item(), y2, int(box[5])]
+                    norm_boxes.append(res_box)
 
         return norm_boxes
 

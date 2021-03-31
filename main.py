@@ -24,7 +24,6 @@ def data_center_x(filtered_data):
     cx = filtered_data[:, 0] + (filtered_data[:, 2] - filtered_data[:, 0]) / 2
     return cx
 
-
 def analytics(input_data, output_image):
 
     data = np.array(input_data, dtype=int)
@@ -54,68 +53,117 @@ def analytics(input_data, output_image):
 
     x1 = (b[:, 0] * a[:, 1] - y[:] * (b[:, 0] - a[:, 0]) - a[:, 0] * b[:, 1]) / (a[:, 1] - b[:, 1])
     x2 = (b[:, 2] * a[:, 3] - y[:] * (b[:, 2] - a[:, 2]) - a[:, 2] * b[:, 3]) / (a[:, 3] - b[:, 3])
-
-    cv2.line(output_image, (int(x1[0]), y[0]), (int(x1[-1]), y[-1]), (255, 0, 255), thickness=3)
-    cv2.line(output_image, (int(x2[0]), y[0]), (int(x2[-1]), y[-1]), (255, 0, 255), thickness=3)
+    #
+    # cv2.line(output_image, (int(x1[0]), y[0]), (int(x1[-1]), y[-1]), (255, 0, 255), thickness=3)
+    # cv2.line(output_image, (int(x2[0]), y[0]), (int(x2[-1]), y[-1]), (255, 0, 255), thickness=3)
 
     cx = data_center_x(filtered_data)
     filtered_data = filtered_data[np.where((cx <= x2) & (cx >= x1))]
+
+    central_rails = filtered_data[np.where(filtered_data[:, 4] == 3)]
+    if (Memory.x1_perspective == []):
+        if (len(central_rails) >= 5):
+            a_perspective = central_rails[0]
+            b_perspective = central_rails[-1]
+            # perspective = central_rails
+            Memory.x1_perspective = (b_perspective[0] * a_perspective[1] - y[:] * (b_perspective[0] - a_perspective[0]) -
+                                     a_perspective[0] * b_perspective[1]) / (a_perspective[1] - b_perspective[1])
+            Memory.x2_perspective = (b_perspective[2] * a_perspective[3] - y[:] * (b_perspective[2] - a_perspective[2]) - a_perspective[2] * b_perspective[3]) / (a_perspective[3] - b_perspective[3])
+    else:
+        pass
+        # cv2.line(output_image, (int(Memory.x1_perspective[0]), y[0]), (int(Memory.x1_perspective[-1]), y[-1]),
+        #          (255, 255, 255), thickness=3)
+        # cv2.line(output_image, (int(Memory.x2_perspective[0]), y[0]), (int(Memory.x2_perspective[-1]), y[-1]),
+        #          (255, 255, 255), thickness=3)
+        # print("x1", Memory.x1_perspective)
+        # print("x2", Memory.x2_perspective)
+
     # filtered_data = filtered_data[np.where(cx in range(x1, x2))]
 
     # for i in range(len(x1)):
     #     cv2.circle(output_image, (int(x1[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
     #     cv2.circle(output_image, (int(x2[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
     #     cv2.circle(output_image, (int(cx[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
+
     class_rails = filtered_data[:, 4]
     if any(class_rails == box_class.index("switch right front")):
         Memory.switch_right_front += 1
         # print("right", Memory.switch_right_front)
 
-    elif any(class_rails == box_class.index('switch left front')):
+    elif any(class_rails == box_class.index("switch left front")):
         Memory.switch_left_front += 1
+
+    elif any(class_rails == box_class.index("right crossing")):
+        Memory.right_crossing += 1
         # print("left", Memory.switch_left_front)
-    if (Memory.init_box_detected == []) & (len(filtered_data) == len(Memory.y_lines)):
-        Memory.init_box_detected = filtered_data
-        lines_data = Memory.init_box_detected
-    else:
-        lines_data = filtered_data
-    for i, line in enumerate(Memory.y_lines):
-        y_boxes = filtered_data[np.where(filtered_data[i, 3] == line[3])]
-        overlap = []
-        if len(y_boxes) > 1:
-            for j, box in enumerate(y_boxes):
-                ################
-                # тут продолжить
-                #################
-                overlap.append(area(y_boxes[j], filtered_data[i]))
-                lines_data[i] = y_boxes[np.where(overlap == max(overlap))[0][0]]
-        else:
-            lines_data[i] = y_boxes[0]
-        # lines_data[i] = filtered_data[np.where(filtered_data[i, 3] == line)]
+    # if (Memory.current_rails_detected == False) & (Memory.init_box_detected == []):
+    #     Memory.init_box_detected = filtered_data
+    #     Memory.current_rails_detected == True
 
-        class_rails = lines_data[i][4]
+    # double_central_rails = filtered_data[filtered_data[:, 4] == 0]
+    # for i, box in enumerate(double_central_rails):
+    #     double_central_rails[i] = data_center_x(double_central_rails)
+    # if Memory.x1_perspective != []:
+    #     double_central_rails[:, 3] = Memory.x2_perspective
+    #     double_central_rails_left = [double_central_rails[:, 0], double_central_rails[:, 1], (double_central_rails[:, 0] + (Memory.x2_perspective[:] - Memory.x1_perspective[:]))]
+    #     double_central_rails_left = [double_central_rails[:, 0], double_central_rails[:, 1], (double_central_rails[:, 0] + (Memory.x2_perspective[:, 0] - Memory.x1_perspective[:, 0]))]
+    #     filtered_data = filtered_data[np.where((double_central_rails_cx <= x2) & (double_central_rails_cx >= x1))]
+    # if Memory.switch_right_front >= 20:
 
-        if class_rails == box_class.index('double central rails'):
-            cx_right = lines_data[i][2] - Memory.previous_data[i, 2] + Memory.previous_data[i, 0]
-            cx_left = lines_data[i][0] + Memory.previous_data[i, 2] - Memory.previous_data[i, 0]
 
-            # if cx1
-            # y_double_central_rails = line[1]
-            # x1_double_central_rails = (b[:, 0] * a[:, 1] - y_double_central_rails[:] * (b[:, 0] - a[:, 0]) - a[:, 0] * b[:, 1]) / (a[:, 1] - b[:, 1])
-            # x2_double_central_rails = (b[:, 2] * a[:, 3] - y_double_central_rails[:] * (b[:, 2] - a[:, 2]) - a[:, 2] * b[:, 3]) / (a[:, 3] - b[:, 3])
-            if Memory.switch_left_front >= 20:
-                filtered_data[i, 0] = int(cx_left)
-                # double_central_rails[:, 0] = cx_left[:]
-                print("LEFT")
-                # filtered_data = double_central_rails[np.where(~(cx_right <= x2_double_central_rails) & ~(cx_right >= x1_double_central_rails))]
-            if Memory.switch_right_front >= 20:
-                filtered_data[i, 0] = int(cx_right)
-                # cv2.circle(output_image,
-                #            (int(filtered_data[double_central_rails_filter][:][0][0]), y_double_central_rails), 40,
-                #            (0, 255, 0), thickness=-1)
-                print("RIGHT")
-                # filtered_data[double_central_rails[np.where(~(cx_right <= x2_double_central_rails) & ~(cx_right >= x1_double_central_rails), 1, 0)]] = [x1_double_central_rails, ...]
+    if (Memory.switch_right_front >= 20) | (Memory.right_crossing >= 20):
+        right_double_box = filtered_data[filtered_data[:, 4] != 17]
+        filtered_data = right_double_box
 
+    if (Memory.switch_left_front >= 20) | (Memory.left_crossing >= 20):
+        right_double_box = filtered_data[filtered_data[:, 4] != 17]
+        filtered_data = right_double_box
+
+    # lines_data =
+    # for i, line in enumerate(Memory.y_lines):
+    #
+    #     y_boxes = filtered_data[np.where(filtered_data[:, 3] == Memory.y_lines[i])]
+    #     # lines_data.insert(i, filtered_data[i])
+    #     print("y_boxes", y_boxes)
+    #     overlap = []
+    #     if len(y_boxes) > 1:
+    #         for j, box in enumerate(y_boxes):
+    #             ################
+    #             # тут продолжить
+    #             #################
+    #
+    #             overlap.append(area(y_boxes[j], lines_data[i-1]))
+    #         lines_data[i] = y_boxes[np.where(overlap == max(overlap))][0]
+    #     elif len(y_boxes) == 0:
+    #         print("i", i)
+    #         lines_data[i] = [lines_data[i, 0], Memory.init_box_detected[i, 1], lines_data[i, 2], Memory.y_lines[i], lines_data[i, 4]]
+    #     # lines_data[i] = filtered_data[np.where(filtered_data[i, 3] == line)]
+    #     else:
+    #         lines_data[i] = y_boxes
+    #
+    #     class_rails = lines_data[i][4]
+    #
+    #     if class_rails == box_class.index('double central rails'):
+    #         cx_right = lines_data[i][2] - Memory.previous_data[i, 2] + Memory.previous_data[i, 0]
+    #         cx_left = lines_data[i][0] + Memory.previous_data[i, 2] - Memory.previous_data[i, 0]
+    #
+    #         # if cx1
+    #         # y_double_central_rails = line[1]
+    #         # x1_double_central_rails = (b[:, 0] * a[:, 1] - y_double_central_rails[:] * (b[:, 0] - a[:, 0]) - a[:, 0] * b[:, 1]) / (a[:, 1] - b[:, 1])
+    #         # x2_double_central_rails = (b[:, 2] * a[:, 3] - y_double_central_rails[:] * (b[:, 2] - a[:, 2]) - a[:, 2] * b[:, 3]) / (a[:, 3] - b[:, 3])
+    #         if Memory.switch_left_front >= 20:
+    #             filtered_data[i, 0] = int(cx_left)
+    #             # double_central_rails[:, 0] = cx_left[:]
+    #             print("LEFT")
+    #             # filtered_data = double_central_rails[np.where(~(cx_right <= x2_double_central_rails) & ~(cx_right >= x1_double_central_rails))]
+    #         if Memory.switch_right_front >= 20:
+    #             filtered_data[i, 0] = int(cx_right)
+    #             # cv2.circle(output_image,
+    #             #            (int(filtered_data[double_central_rails_filter][:][0][0]), y_double_central_rails), 40,
+    #             #            (0, 255, 0), thickness=-1)
+    #             print("RIGHT")
+    #             # filtered_data[double_central_rails[np.where(~(cx_right <= x2_double_central_rails) & ~(cx_right >= x1_double_central_rails), 1, 0)]] = [x1_double_central_rails, ...]
+    # Memory.current_rails_detected = True
     # print("left", Memory.switch_left_front)
         #
         # elif class_rails == box_class.index('right crossing') and Memory.switch_right_front >= 20:
@@ -153,6 +201,8 @@ def analytics(input_data, output_image):
 
     x1 = (b[:, 0] * a[:, 1] - y[:] * (b[:, 0] - a[:, 0]) - a[:, 0] * b[:, 1]) / (a[:, 1] - b[:, 1])
     x2 = (b[:, 2] * a[:, 3] - y[:] * (b[:, 2] - a[:, 2]) - a[:, 2] * b[:, 3]) / (a[:, 3] - b[:, 3])
+    cx = data_center_x(filtered_data)
+    filtered_data = filtered_data[np.where((cx <= x2) & (cx >= x1))]
 
     cv2.line(output_image, (int(x1[0]), y[0]), (int(x1[-1]), y[-1]), (255, 0, 255), thickness=3)
     cv2.line(output_image, (int(x2[0]), y[0]), (int(x2[-1]), y[-1]), (255, 0, 255), thickness=3)

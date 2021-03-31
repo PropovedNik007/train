@@ -13,7 +13,7 @@
         "line heght": 64,
         "classes": ["double central rails", "double left rails", "double right rails", "central rails", "left rails",
             "right rails", "half left rails", "half right rails", "switch right back", "switch left back", "switch right front",
-            "switch left front", "switch", "left crossing", "right crossing", "double cross"]
+            "switch left front", "switch", "left crossing", "right crossing", "double cross", "reserve 1", "reserve 2"]
     },
     "work resolution": {
         "width": 1280, 
