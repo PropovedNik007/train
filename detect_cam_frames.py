@@ -53,6 +53,7 @@ class Task(threading.Thread):
         self.is_run = True
         self.hot_cake = False
         self.status_task = task_stat["Не начат"]
+        self.delay = 0
 
         self.ret_opt["frame_counter"] = 0
         self.opt["frame_count"] = 100
@@ -255,7 +256,15 @@ class Task(threading.Thread):
                 #
                 # cv2.imshow('window_name', output_image)
                 cv2.imshow('window_name', output_image)
-                cv2.waitKey(0)
+                # cv2.waitKey(5)
+                key = cv2.waitKey(self.delay)
+                if key & 0xFF == 13 or key & 0xFF == 141:  # Если нажали Enter то перейти в видеорежим
+                    self.delay = 20
+                if key & 0xFF == 32:  # Если нажали Space то перейти в покадровый режим
+                    self.delay = 0
+                if key & 0xFF == ord('q') or key & 0xFF == 202:  # Если нажали Q то выйти
+                    return False
+                # return True
 
                 # cv2.imshow('all', output_image1)
                 # cv2.waitKey(0)
@@ -294,8 +303,8 @@ class Task(threading.Thread):
                 # cv2.destroyWindow('display')
 
                 # opt_alg = {"frames":frame, "boxes":boxes, "rail_lines": rail_lines}
-                opt_alg = {"frames": frame, "boxes": boxes}
-                opt_alg = detect_pipeline.update(opt_alg)
+                # opt_alg = {"frames": frame, "boxes": boxes}
+                # opt_alg = detect_pipeline.update(opt_alg)
                 # На данный момент реализованы алгоритмы определения событий пересечения линии и
                 # вхождения в область.
                 # Не реализованы классы преобразования событий в подсчет или отправки тревоги
@@ -379,9 +388,10 @@ if __name__ == '__main__':
     # opt["VideoFile"] = "rtsp://192.168.4.103:554/1?stream_id=1.2"
     # opt["VideoFile"] = "/home/evgeny/work/project/lost_thing/ТЕСТ/Движение в запрещенном направлении/UMD_2_TOP.avi"
 
-    # opt["VideoFile"] = "video_teplovoz/6.mp4"
-    # opt["VideoFile"] = "video_teplovoz/123.mp4"
     opt["VideoFile"] = "video_teplovoz/1.mp4"
+    # opt["VideoFile"] = "video_teplovoz/1.mp4"
+    # opt["VideoFile"] = "video_teplovoz/123.mp4"
+    # opt["VideoFile"] = "video_teplovoz/1.mp4"
 
     # opt["VideoFile"] = "video_teplovoz/frontal1.mp4"
     # "/home/evgeny/work/project/lost_thing/ТЕСТ/Проход в запрещенную зону/CZ_LO_3_SIDE.avi",
