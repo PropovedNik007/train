@@ -35,31 +35,39 @@ def equation_line(x1, y1, x2, y2, y):
     return x
 
 
-def reset_counters(filtered_data, class_rails):
+def perspective_filter(filtered_data, a, b):
+    y = filtered_data[:, 3]
+    Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
+    Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
+    cx = data_center_x(filtered_data)
+    filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
+    return filtered_data
+
+
+def move_average(filtered_data):
+    cx = data_center_x(filtered_data)
+    average_cx = np.int16(bn.move_mean(cx, window=3, min_count=1))
+    average_filter = (abs(cx - average_cx) <= 15)
+    filtered_data = filtered_data[average_filter]
+    return filtered_data
+
+
+# condition for resetting switch counters
+def reset_counters(filtered_data):
+    class_rails = filtered_data[:, 4]
     central_rails = np.copy(filtered_data[np.where(filtered_data[:, 4] == 3)])
-    if len(central_rails) >= 5:
-        # Memory.a_perspective
-        # Memory.b_perspective = central_rails[-1]
-        # Memory.a_perspective.reshape(1, 5)
-        # Memory.b_perspective.reshape(1, 5)
-        # y = filtered_data[:, 3]
-        # Memory.x1_perspective = (Memory.b_perspective[0, 0] * Memory.a_perspective[0, 1] - y[:] * (
-        #         Memory.b_perspective[0, 0] - Memory.a_perspective[0, 0]) -
-        #                          Memory.a_perspective[0, 0] * Memory.b_perspective[0, 1]) / (
-        #                                 Memory.a_perspective[0, 1] - Memory.b_perspective[0, 1])
-        # Memory.x2_perspective = (Memory.b_perspective[0, 2] * Memory.a_perspective[0, 3] - y[:] * (
-        #         Memory.b_perspective[0, 2] - Memory.a_perspective[0, 2]) - Memory.a_perspective[0, 2] *
-        #                          Memory.b_perspective[0, 3]) / (
-        #                                 Memory.a_perspective[0, 3] - Memory.b_perspective[0, 3])
-        if len(central_rails) >= 10 & \
-                ((not any(class_rails == box_class.index("switch right front"))) |
-                 (not any(class_rails == box_class.index("switch left front")))):
-            if (not any(class_rails == box_class.index("switch right front"))) | \
-                    (not any(class_rails == box_class.index("switch left front"))):
+    if len(central_rails) >= 10 & \
+            ((not any(class_rails == box_class.index("switch right front"))) &
+             (not any(class_rails == box_class.index("switch left front")))):
+        if (len(filtered_data[class_rails == box_class.index("left crossing")]) <= 3) & \
+                (len(filtered_data[class_rails == box_class.index("right crossing")]) <= 3):
+            if (len(filtered_data[class_rails == box_class.index("reserve 1")]) <= 3) & \
+                    (len(filtered_data[class_rails == box_class.index("reserve 2")]) <= 3):
                 Memory.switch_right_front = 0
                 Memory.switch_left_front = 0
                 Memory.right_crossing = 0
                 Memory.left_crossing = 0
+                print("СБРОС")
 
 
 def switch_direction(switch_right_front, switch_left_front):
@@ -84,7 +92,6 @@ def get_norm_box(rail_boxes, crop_coors, frame_width, frame_height):
     boxes = boxes[::-1]
 
     # InputPlug.CropCoors = np.int16(InputPlug.CropCoors * InputPlug.FrameHeight)
-
     top_list = crop_coors[:, 0]
     bottom_list = crop_coors[:, 1]
 
@@ -105,14 +112,11 @@ def get_norm_box(rail_boxes, crop_coors, frame_width, frame_height):
             # box[1] = box[1] * frame_height
             # box[2] = box[2] * frame_width
             # box[3] = box[3] * frame_height
-
             if int(box[5]) == 0:
                 right_double_box = [(box[2].item() - (i * i * 0.2464 - i * 15.45 + 309.5)), y1, box[2].item(), y2, 17]
                 # right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, 16]
-
                 # left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, 17]
                 left_double_box = [box[0].item(), y1, (box[0].item() + (i * i * 0.2464 - i * 15.45 + 309.5)), y2, 16]
-
                 norm_boxes.append(right_double_box)
                 norm_boxes.append(left_double_box)
             elif int(box[5]) == 12:
@@ -139,64 +143,21 @@ def analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image):
     # data[:, 3] = np.int16(data[:, 3] * InputPlug.FrameHeight)
 
     class_rails = data[:, 4]
+    # Убираем лишние классы
     class_rails_filter = np.where((class_rails == 0) | (class_rails == 3) | (class_rails >= 8))
     filtered_data = data[class_rails_filter]
-    filtered_data[0, :] = [563, 624, 873, 720, 16]
+    # filtered_data[0, :] = [563, 624, 873, 720, 16]
 
     if Memory.previous_data == []:
         Memory.previous_data = np.array(filtered_data, dtype=int)
 
-    if len(filtered_data) > 5:
-        if (np.std(filtered_data[-5:, 2]) <= 20) & (np.std(filtered_data[0:5, 2]) <= 20):
-            a = filtered_data[(-len(filtered_data[-5:, 2])) - (np.where(np.std(filtered_data[-5:, 2]) <= 20)[0])]
-            Memory.previous_data[-5:, 2] = filtered_data[-5:, 2]
-            # cv2.circle(output_image, (a[0, 0], a[0, 1]), 20, (0, 255, 0), thickness=-1)
-            b = filtered_data[np.where(np.std(filtered_data[0:5, 2]) <= 20)[0]]
-            # cv2.circle(output_image, (b[0, 0], b[0, 1]), 20, (255, 255, 255), thickness=-1)
-            # Memory.previous_data[0:5, 2] = filtered_data[0:5, 2]
-            Memory.a_perspective = a
-            Memory.b_perspective = b
-            y = filtered_data[:, 3]
-            Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-            Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-            cx = data_center_x(filtered_data)
-            filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-            reset_counters(filtered_data, class_rails)
-
-            # Memory.a_perspective[-5:, 2] = filtered_data[-5:, 2]
-        else:
-            y = filtered_data[:, 3]
-            a = Memory.a_perspective
-            b = Memory.b_perspective
-            # a = Memory.previous_data[
-            #     (-len(Memory.previous_data[-5:, 2])) - (np.where(np.std(Memory.previous_data[-5:, 2]) <= 50)[0])]
-            # b = Memory.previous_data[np.where(np.std(Memory.previous_data[0:5, 2]) <= 40)[-1]]
-
-            # cv2.circle(output_image, (a[0, 0], a[0, 1]), 20, (255, 255, 0), thickness=-1)
-            # cv2.circle(output_image, (b[0, 0], b[0, 1]), 20, (0, 255, 255), thickness=-1)
-            if len(a) == len(b):
-                a = a.reshape(-1, 5)
-                b = b.reshape(-1, 5)
-                # Memory.a_perspective[0, :] = np.array([[629, 0, 704, 16, 3]])
-                # Memory.b_perspective[0, :] = np.array([[563, 624, 873, 720, 16]])
-                Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-                Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-                # Memory.x1_perspective = equation_line(Memory.a_perspective[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-                # Memory.x2_perspective = equation_line(Memory.a_perspective[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-                cx = data_center_x(filtered_data)
-                filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-    else:
-        y = filtered_data[:, 3]
-        a = Memory.a_perspective
-        b = Memory.b_perspective
-        Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-        Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-        # Memory.x1_perspective = equation_line(Memory.a_perspective[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-        # Memory.x2_perspective = equation_line(Memory.a_perspective[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-        cx = data_center_x(filtered_data)
-        filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-        reset_counters(filtered_data, class_rails)
-
+    a = Memory.a_perspective
+    b = Memory.b_perspective
+    a = a.reshape(-1, 5)
+    b = b.reshape(-1, 5)
+    cv2.circle(output_image, (a[0, 0], a[0, 1]), 10, (255, 0, 0), thickness=-1)
+    cv2.circle(output_image, (b[0, 0], b[0, 1]), 10, (255, 0, 0), thickness=-1)
+    filtered_data = perspective_filter(filtered_data, a, b)
 
     # 0: "double central rails",
     # 1: "double left rails",
@@ -222,150 +183,82 @@ def analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image):
         Memory.switch_right_front += 1
         # print("right", Memory.switch_right_front)
 
-    elif any(class_rails == box_class.index("switch left front")):
+    if any(class_rails == box_class.index("switch left front")):
         Memory.switch_left_front += 1
-        # print("right", Memory.switch_left_front)
+        # print("left", Memory.switch_left_front)
 
-    elif len(class_rails == box_class.index("right crossing")) >= 3:
+    if len(class_rails == box_class.index("right crossing")) >= 5:
         Memory.right_crossing += 1
         # print("right crossing", Memory.right_crossing)
 
-    elif len(class_rails == box_class.index("left crossing")) >= 3:
+    if len(class_rails == box_class.index("left crossing")) >= 5:
         Memory.left_crossing += 1
+        # print("left crossing", Memory.left_crossing)
+
+    if len(class_rails == box_class.index("reserve 1")) >= 5:
+        Memory.left_crossing += 1
+        # print("left crossing", Memory.left_crossing)
+
+    if len(class_rails == box_class.index("reserve 2")) >= 5:
+        Memory.right_crossing += 1
         # print("right crossing", Memory.left_crossing)
 
-    elif len(class_rails == box_class.index("reserve 1")) >= 3:
-        Memory.left_crossing += 1
-        # print("right crossing", Memory.left_crossing)
-
-    elif len(class_rails == box_class.index("reserve 2")) >= 3:
-        Memory.left_crossing += 1
-        # print("right crossing", Memory.left_crossing)
-
-    if (Memory.switch_right_front >= 20) | (Memory.right_crossing >= 20):
+    if (Memory.switch_right_front > Memory.switch_left_front) | (Memory.right_crossing > Memory.left_crossing):
+        # if (Memory.switch_right_front >= 15) | (Memory.right_crossing >= 15):
         right_double_box = filtered_data[filtered_data[:, 4] != 16]
         right_crossing_box = right_double_box[right_double_box[:, 4] != 13]
         filtered_data = right_crossing_box
-        # print("right", Memory.right_crossing, Memory.switch_right_front)
+        print("right", Memory.right_crossing, Memory.switch_right_front)
 
-    elif (Memory.switch_left_front >= 20) | (Memory.left_crossing >= 20):
+    if (Memory.switch_left_front > Memory.switch_right_front) | (Memory.left_crossing > Memory.right_crossing):
+        # if (Memory.switch_left_front >= 15) | (Memory.left_crossing >= 15):
         left_double_box = filtered_data[filtered_data[:, 4] != 16]
         left_crossing_box = left_double_box[left_double_box[:, 4] != 13]
         filtered_data = left_crossing_box
-        # print("left", Memory.left_crossing, Memory.switch_left_front)
+        print("left", Memory.left_crossing, Memory.switch_left_front)
 
     else:
-        y = filtered_data[:, 3]
-        b = b.reshape(-1, 5)
-        a = a.reshape(-1, 5)
-        if len(a) == len(b):
-            # a = Memory.a_perspective
-            # b = Memory.b_perspective
-            Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-            Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-            # Memory.x1_perspective = equation_line(a[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-            # Memory.x2_perspective = equation_line(a[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-
-            # cv2.line(output_image, (int(Memory.x1_perspective[0]), y[0]), (int(Memory.x1_perspective[-1]), y[-1]),
-            #          (255, 0, 0), thickness=3)
-            # cv2.line(output_image, (int(Memory.x2_perspective[0]), y[0]), (int(Memory.x2_perspective[-1]), y[-1]),
-            #          (255, 0, 0), thickness=3)
-            cx = data_center_x(filtered_data)
-            filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-
-    if len(filtered_data) > 5:
-        if (np.std(filtered_data[-5:, 2]) <= 20) & (np.std(filtered_data[0:5, 2]) <= 20):
-            a = filtered_data[(-len(filtered_data[-5:, 2])) - (np.where(np.std(filtered_data[-5:, 2]) <= 20)[0])]
-            Memory.previous_data[-5:, 2] = filtered_data[-5:, 2]
-            # cv2.circle(output_image, (a[0, 0], a[0, 1]), 20, (0, 255, 0), thickness=-1)
-            b = filtered_data[np.where(np.std(filtered_data[0:5, 2]) <= 20)[0]]
-            # cv2.circle(output_image, (b[0, 0], b[0, 1]), 20, (255, 255, 255), thickness=-1)
-            # Memory.previous_data[0:5, 2] = filtered_data[0:5, 2]
-            Memory.a_perspective = a
-            Memory.b_perspective = b
-            y = filtered_data[:, 3]
-            # a = Memory.a_perspective
-            # b = Memory.b_perspective
-            Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-            Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-            # Memory.x1_perspective = equation_line(Memory.a_perspective[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-            # Memory.x2_perspective = equation_line(Memory.a_perspective[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-            cx = data_center_x(filtered_data)
-            filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-            reset_counters(filtered_data, class_rails)
-
-            # Memory.a_perspective[-5:, 2] = filtered_data[-5:, 2]
-        else:
-            y = filtered_data[:, 3]
-            a = Memory.a_perspective
+        reset_counters(filtered_data)
+    #     a = Memory.a_perspective
+    #     b = Memory.b_perspective
+    #     a = a.reshape(-1, 5)
+    #     b = b.reshape(-1, 5)
+    #     cv2.circle(output_image, (a[0, 0], a[0, 1]), 33, (33, 255, 33), thickness=-1)
+    #     cv2.circle(output_image, (b[0, 0], b[0, 1]), 33, (33, 255, 33), thickness=-1)
+    #     filtered_data = perspective_filter(filtered_data, a, b)
+    if len(filtered_data) >= 10:
+        # if (np.std(filtered_data[-10:, 2]) <= 10):
+        cx = data_center_x(filtered_data)
+        # average_cx = np.int16(bn.move_mean(cx, window=3, min_count=1))
+        # average_filter = min(abs(cx - average_cx))
+        # average_filter = (abs(cx - average_cx) <= 15)
+        # filtered_data = filtered_data[average_filter]
+        if np.std(cx[-5:]) <= 10:
+            a = filtered_data[(-len(cx[-5:])) - (np.where(np.std(cx[-5:]) <= 10)[0])]
             b = Memory.b_perspective
-            # a = Memory.previous_data[
-            #     (-len(Memory.previous_data[-5:, 2])) - (np.where(np.std(Memory.previous_data[-5:, 2]) <= 50)[0])]
-            # b = Memory.previous_data[np.where(np.std(Memory.previous_data[0:5, 2]) <= 40)[-1]]
+            Memory.previous_data[-5:, 2] = filtered_data[-5:, 2]
+            cv2.circle(output_image, (a[0, 0], a[0, 1]), 20, (0, 255, 0), thickness=-1)
+            cv2.circle(output_image, (b[0, 0], b[0, 1]), 10, (0, 0, 0), thickness=-1)
+            Memory.a_perspective = a
 
-            # cv2.circle(output_image, (a[0, 0], a[0, 1]), 20, (255, 255, 0), thickness=-1)
-            # cv2.circle(output_image, (b[0, 0], b[0, 1]), 20, (0, 255, 255), thickness=-1)
-            if len(a) == len(b):
-                a = a.reshape(-1, 5)
-                b = b.reshape(-1, 5)
-                # Memory.a_perspective[0, :] = np.array([[629, 0, 704, 16, 3]])
-                # Memory.b_perspective[0, :] = np.array([[563, 624, 873, 720, 16]])
-                # a = Memory.a_perspective
-                # b = Memory.b_perspective
-                Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-                Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-                # Memory.x1_perspective = equation_line(a[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-                # Memory.x2_perspective = equation_line(a[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-                cx = data_center_x(filtered_data)
-                filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
+        if (np.std(cx[0:5]) <= 20):
+            a = Memory.a_perspective
+            b = filtered_data[np.where(np.std(cx[0:5]) <= 20)[0]]
+            cv2.circle(output_image, (b[0, 0], b[0, 1]), 20, (0, 255, 0), thickness=-1)
+            cv2.circle(output_image, (a[0, 0], a[0, 1]), 10, (0, 0, 0), thickness=-1)
+            Memory.b_perspective = b
+
     else:
         a = Memory.a_perspective
         b = Memory.b_perspective
         a = a.reshape(-1, 5)
         b = b.reshape(-1, 5)
-        cx = data_center_x(filtered_data)
+        cv2.circle(output_image, (a[0, 0], a[0, 1]), 10, (0, 0, 0), thickness=-1)
+        cv2.circle(output_image, (b[0, 0], b[0, 1]), 10, (0, 0, 0), thickness=-1)
+        # filtered_data = perspective_filter(filtered_data, a, b)
 
-        Memory.x1_perspective = equation_line(a[0][0], a[0][3], b[0][0], b[0][3], y[:])
-        Memory.x2_perspective = equation_line(a[0][2], a[0][3], b[0][2], b[0][3], y[:])
-        # Memory.x1_perspective = equation_line(Memory.a_perspective[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-        # Memory.x2_perspective = equation_line(Memory.a_perspective[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-        filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-        reset_counters(filtered_data, class_rails)
-
-    # if len(filtered_data) > 5:
-    #     if np.std(filtered_data[-5:, 2]) <= 30:
-    #         a = filtered_data[(-len(filtered_data[-5:, 2])) - (np.where(np.std(filtered_data[-5:, 2]) <= 30)[0])]
-    #         Memory.previous_data[-5:, 2] = filtered_data[-5:, 2]
-    #     else:
-    #         a = Memory.previous_data[
-    #             (-len(Memory.previous_data[-5:, 2])) - (np.where(np.std(Memory.previous_data[-5:, 2]) <= 30)[0])]
-    #
-    #     if np.std(filtered_data[0:5, 2]) <= 30:
-    #         b = filtered_data[np.where(np.std(filtered_data[0:5, 2]) <= 30)[0]]
-    #         # Memory.previous_data[0:5, 2] = filtered_data[0:5, 2]
-    #     else:
-    #         b = Memory.previous_data[np.where(np.std(Memory.previous_data[0:5, 2]) <= 50)[-1]]
-    #
-    # y = filtered_data[:, 3]
-    # b = b.reshape(-1, 5)
-    # a = a.reshape(-1, 5)
-    # if len(a) != 0 & len(b) != 0:
-    #     Memory.x1_perspective = equation_line(a[:, 0], a[:, 3], b[:, 0], b[:, 3], y[:])
-    #     # Memory.a_perspective = Memory.a_perspective.reshape(-1, 5)
-    #     # Memory.b_perspective = Memory.b_perspective.reshape(-1, 5)
-    #     # Memory.x1_perspective = equation_line(Memory.a_perspective[:, 0], Memory.a_perspective[:, 1], b[:, 0], b[:, 1], y[:])
-    #     Memory.x2_perspective = equation_line(a[:, 2], a[:, 3], b[:, 2], b[:, 3], y[:])
-    #
-    #     # cv2.line(output_image, (int(Memory.x1_perspective[0]), y[0]), (int(Memory.x1_perspective[-1]), y[-1]),
-    #     #          (255, 255, 255), thickness=3)
-    #     # cv2.line(output_image, (int(Memory.x2_perspective[0]), y[0]), (int(Memory.x2_perspective[-1]), y[-1]),
-    #     #          (255, 255, 255), thickness=3)
-    #     cx = data_center_x(filtered_data)
-    #     filtered_data = filtered_data[(cx <= Memory.x2_perspective) & (cx >= Memory.x1_perspective)]
-    # for i in range(len(x1)):
-    #     cv2.circle(output_image, (int(x1[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
-    #     cv2.circle(output_image, (int(x2[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
-    #     cv2.circle(output_image, (int(cx[i]), int(y[i])), 10, (0, 255, 0), thickness=-1)
+    filtered_data = perspective_filter(filtered_data, a, b)
+    reset_counters(filtered_data)
 
     output_data = np.copy(filtered_data)
 
@@ -376,7 +269,7 @@ def analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image):
     # Контур полигона без сглаживания
     # for i, box in enumerate(polygon):
     #     cv2.line(output_image, (int(polygon[i][0]), int(polygon[i][1])), (int(polygon[i-1][0]), int(polygon[i-1][1])), (255, 0, 255), thickness=3)
-
+    filtered_data = filtered_data.reshape(-1, 5)
     filtered_data[:, 0] = filt.uniform_filter(filtered_data[:, 0], size=5, mode='nearest')
     # filtered_data[:, 0] = gaussian_filter(filtered_data[:, 0], sigma=(5), mode='nearest')
     filtered_data[:, 3] = filt.uniform_filter(filtered_data[:, 3], size=5, mode='nearest')
@@ -385,6 +278,7 @@ def analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image):
     # filtered_data[::-1, 3] = filt.uniform_filter(filtered_data[::-1, 3], size=5, mode='nearest')
     # filtered_data[-1:, :] = filtered_data[-1:, :]
     filtered_data[-1:, 3] = filtered_data[-1:, 1]
+
     filtered_data[0, :] = [563, 624, 873, 720, 16]
     polygon_left = (np.column_stack((filtered_data[:, 0], filtered_data[:, 3])))
     polygon_right = (np.column_stack((filtered_data[::-1, 2], filtered_data[::-1, 3])))
@@ -395,8 +289,6 @@ def analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image):
     #              (int(polygon[i - 1][0]), int(polygon[i - 1][1])), (0, 255, 0), thickness=3)
     # Рисуем полигон
     # cv2.fillPoly(output_image, polygon, (255, 0, 255))
-
-
 
     # Полупрозрачный
     output = np.zeros_like(output_image, dtype=np.uint8)

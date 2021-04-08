@@ -58,10 +58,10 @@ class video_loader(data_loader):
         self.height = img_size[0]
 
         # Высоты лент на изображении для формирования входных данных YOLO
-        # self.height_line =    [16,16,16,16,32,32,32,32,32,64,64,64,96,96,96] #
-        # self.height_line = [16,16,16,16,16,32,32,32,32,32,64,64,64,96,96,96]
-        # self.height_line =                [32,32,32,32,32,64,64,64,96,96,96]
-        self.height_line =      [16,32,32,32,32,32,32,32,64,64,64,96,96,96]
+        self.height_line = [32,32,32,32,32,64,64,64,96,96,96]
+        #self.height_line = self.height_line[::-1]
+        #self.height_line = [16,16,16,16,16,32,32,32,32,32,64,64,64]
+        #self.height_line = [32,32,32,32,32,32,32,64,64,64,96]
         # Высота лент на входе в YOLO
         # self.height_standart = 64
 
@@ -78,7 +78,7 @@ class video_loader(data_loader):
         self.image_origin = None        # текущий считанный кадр разрешения [576,720,3]
         self.image_tensor = None        # преобразованный в тензор текущий кадр разрешения [3,300,300]
         self.nn_input = []              # Вход для YOLO в формате тензор
-        self.top_border = self.height - sum(self.height_line) # Граница с которой режется лента
+        self.top_border = self.height_origin - sum(self.height_line) # Граница с которой режется лента
         self.border = self.top_border
 
         self.num_image = 0
@@ -87,9 +87,10 @@ class video_loader(data_loader):
             ret, image = self.cap.read()
             
             if ret:
-                #self.image_origin = image
+                self.image_origin = image
 
                 self.image = cv2.resize(image, (self.width, self.height), interpolation=cv2.INTER_AREA)
+
                 self.top_list = []
                 self.bottom_list = []
                 # for h in self.height_line:
@@ -107,8 +108,8 @@ class video_loader(data_loader):
                 #c перекрытием
                 for h in self.height_line:
                     for step in list([0, int(h/2)]):
-                        if self.border+h+step <= self.height:
-                            temp = self.image[self.border + step:self.border+h+step]   
+                        if self.border+h+step <= self.height_origin:
+                            temp = image[self.border + step:self.border+h+step]   
                             self.top_list.append(self.border + step)
                             self.bottom_list.append(self.border+h+step)
                             # Изменение высоты ленты под размер входа в YOLO
@@ -124,15 +125,13 @@ class video_loader(data_loader):
                 img = self.image[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
                 img = np.ascontiguousarray(img)
 
-                # for i, it in enumerate(self.nn_input):
-                #     self.nn_input[i] = torch.from_numpy(self.nn_input[i]).cuda()
+                # self.image_tensor = torch.from_numpy(img) #torch.FloatTensor(img)
+                for i, it in enumerate(self.nn_input):
+                    self.nn_input[i] = torch.from_numpy(self.nn_input[i]).cuda()
+                # self.nn_input = torch.from_numpy(self.nn_input)                
 
-                nn_input_0 = torch.zeros([1, 3, 64, 1280], dtype=torch.float16).cuda()
-                for line_input in self.nn_input:
-                    line_input = torch.from_numpy(line_input).cuda()
-                    nn_input_0 = torch.cat([nn_input_0, line_input.unsqueeze(0)])
-                self.nn_input = nn_input_0[1:]
-
+                # input_list.append(self.nn_input.unsqueeze(0).cuda())
+                # input_list.extend(self.nn_input.unsqueeze(0).cuda())
                 self.num_image += 1
             else:
                 if self.num_image == 0:
@@ -159,7 +158,7 @@ class video_loader(data_loader):
         return True
         
     def get_height_standart(self,img_height):
-        if img_height == 32 or img_height==96 or img_height==16:
+        if img_height == 32 or img_height==96:
             return 64
         return img_height
 

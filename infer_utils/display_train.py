@@ -1,10 +1,11 @@
 import cv2
+import pprint
 import numpy as np
 import time
 from tracker_utils import distinct_colors
 from process_classes.utils import display_box, calculate_centr_box
 from infer_utils.display_utils import *
-
+import json
 import torch
 import random
 import pandas as pd
@@ -79,283 +80,6 @@ class display_train(object):
                         self.font, 0.5, self.class_colours[box_class], thickness=2)
         return line
 
-    # def show_frame(self, boxes, class_names, window_name ='display'):
-
-    # top_list, bottom_list = self.video_loader.get_top_bottom_list()
-    # top_list, bottom_list = top_list[::-1], bottom_list[::-1]
-    # output_image = self.video_loader.get_image()
-    # no_boxes=True
-    # #l_top_border = self.video_loader.get_nn_top_border()
-
-    # for i in range(0,len(boxes)):
-    #     if len(boxes[i])!=0:
-    #         no_boxes=False
-    #     # y1 = l_top_border
-    #     # y2 = l_top_border + self.video_loader.get_nn_height_line()[i]
-    #     y1 = top_list[i]
-    #     y2 = bottom_list[i]
-
-    # for box in boxes[i]: box_class = int(box[5]) class_name = class_names[box_class] #if class_name not in ["double
-    # left rails", "double right rails", "left rails", "right rails", "half left rails", "half right rails"]: temp =
-    # box[0:3].to(dtype = torch.int32)
-
-    #         display_box(output_image,[temp[0], y1,\
-    #             temp[2],y2], color=self.class_colours[box_class],thickness=3)
-    #         text = class_names[box_class] + ' ' + str(round(box[4].item(), 4))
-    #         cv2.putText(output_image,text,(temp[0], y1 + 10),\
-    #         self.font,0.5,self.class_colours[box_class],thickness=2)
-
-    #     #l_top_border += self.video_loader.get_nn_height_line()[i]
-
-    # cv2.imshow(window_name, output_image)
-    # cv2.waitKey(0)
-
-    # return output_image
-
-    ##########################################
-    # boxes in normal coordinates ############
-    ##########################################
-    def get_norm_box(self, boxes, class_names):
-        boxes = boxes[::-1]
-        # print(int(boxes[0][0][0]))
-        top_list, bottom_list = self.video_loader.get_top_bottom_list()
-        top_list, bottom_list = top_list[::-1], bottom_list[::-1]
-
-        norm_boxes = []
-        for i in range(0, len(boxes)):
-            if len(boxes[i]) != 0:
-                no_boxes = False
-            y1 = top_list[i]
-            y2 = bottom_list[i]
-            for box in boxes[i]:
-                if int(box[5]) == 0:
-                    # right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, "reserve 1"]
-                    right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, 16]
-                    # right_double_box = [(box[2].item() - (Memory.x2[i] - Memory.x1[i])), y1, box[2].item(), y2, int(box[5])]
-                    # left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, "reserve 2"]
-                    left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, 17]
-                    # left_double_box = [box[0].item(), y1, (box[0].item() + (Memory.x2[i] - Memory.x1[i])), y2, int(box[5])]
-                    norm_boxes.append(right_double_box)
-                    norm_boxes.append(left_double_box)
-                else:
-                    box_class = int(box[5])
-                    class_name = class_names[box_class]
-                    res_box = [box[0].item(), y1, box[2].item(), y2, int(box[5])]
-                    norm_boxes.append(res_box)
-
-        return norm_boxes
-
-    # @staticmethod
-    # def class_filter(norm_boxes, class_rails):
-    #     """
-    #
-    #     :param norm_boxes:
-    #     :param class_rails:
-    #     :return:
-    #     """
-    #     inframe_counter = 0
-    #
-    #     df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
-    #     filter_rails = df['class'] == 3
-    #     central_rails = df.loc[filter_rails]
-    #     y0_count = central_rails['y0'].value_counts(sort=False)
-    #     unique_y0_filter = y0_count.values == 1
-    #     unique_y0_count = y0_count.loc[unique_y0_filter]
-    #
-    #     filter_unique_rails = central_rails[central_rails['y0'].isin(unique_y0_count.index.to_list())]
-    #
-    #     return filter_unique_rails
-    #
-    # def box_center_x(self, box):
-    #     cx = int(box[0]) + int((box[2] - box[0]) / 2)
-    #     return cx
-    #
-    # def box_center_y(self, box):
-    #     cy = box[1] + int((box[3] - box[1]) / 2)
-    #     return cy
-    #
-    # #####################################
-    # # INIT ##############################
-    # #####################################
-    # current_rails = []
-    #
-    # def init_current_rails(self, norm_boxes, class_rails, output_image):
-    #     inframe_counter = 0
-    #     # df = pd.DataFrame(norm_boxes, columns=['x0', 'y0', 'x1', 'y1', 'class'])
-    #     # class_rails = 'central rails'
-    #     filter_unique_central_rails = self.class_filter(norm_boxes, class_rails)
-    #     current_box = []
-    #     for i, box in enumerate(filter_unique_central_rails.values):
-    #         overlap = area(filter_unique_central_rails.values[i], filter_unique_central_rails.values[i - 1])
-    #
-    #         cx = int(self.box_center_x(box))
-    #         cy = int(self.box_center_y(box))
-    #         if inframe_counter < 5:
-    #             if overlap >= Counter.overlap:
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
-    #                 inframe_counter += 1
-    #                 current_box = box
-    #                 Memory.current_frame_rails.append(box)
-    #
-    #             else:
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 100, 255), thickness=-1)
-    #                 inframe_counter = 0
-    #
-    #                 # break
-    #         # elif memory.current_rails_detected == False:
-    #         elif cx in range(int(current_box[0]), int(current_box[2])):
-    #             # инициализация
-    #             if overlap >= Counter.overlap:
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
-    #                 Memory.current_frame_rails.append(box)
-    #                 inframe_counter += 1
-    #                 current_box = box
-    #                 Memory.init_box_detected = box
-    #                 Memory.previous_box = box
-    #                 Memory.current_rails_detected = True
-    #                 return 1
-    #             else:
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 255, 255), thickness=-1)
-    #                 Memory.current_frame_rails.append(box)
-    #
-    #         else:
-    #             # uncomment
-    #             cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
-    #             return 0
-    #
-    # ###########################################################################
-    # # continue the current rails ##############################################
-    # ###########################################################################
-    # def continue_current_rails(self, norm_boxes, output_image):
-    #
-    #     inframe_counter = 0
-    #     current_box = []
-    #     current_rails = []
-    #     for i, box in enumerate(norm_boxes):
-    #
-    #         overlap = area(norm_boxes[i], norm_boxes[i - 1])
-    #         # overlap = area(norm_boxes[i], Memory.previous_box)
-    #
-    #         cx = self.box_center_x(box)
-    #         cy = self.box_center_y(box)
-    #         # uncomment
-    #         cv2.circle(output_image, (cx, cy), 20, (255, 0, 155), thickness=-1)
-    #
-    #         if cx in range(int(Memory.init_box_detected[0]), int(Memory.init_box_detected[2])):
-    #             Memory.previous_box = box
-    #             if overlap >= Counter.overlap:
-    #
-    #                 # Memory.previous_box = box
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 255, 0), thickness=-1)
-    #                 Memory.current_frame_rails.append(box)
-    #
-    #                 # if box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-    #                 #     Memory.previous_switch_right_front += 1
-    #                 #     Memory.between_frame_switch_front += 1
-    #                 #     Memory.init_box_detected = box
-    #                 #     Counter.between_frame_counter += 1
-    #                 #
-    #                 # elif box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-    #                 #     Memory.previous_switch_right_front += 1
-    #                 #     Memory.between_frame_switch_front += 1
-    #                 #     Memory.init_box_detected = box
-    #                 #     Counter.between_frame_counter += 1
-    #                 #
-    #                 # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
-    #                 #     Memory.init_box_detected = box
-    #                 #
-    #                 # elif box[4] == 'switch left front':
-    #                 #     Memory.previous_switch_left_front += 1
-    #                 #
-    #                 # elif box[4] == 'left crossing' and Memory.previous_switch_left_front >= 10:
-    #                 #     Memory.init_box_detected = box
-    #                 #
-    #                 # elif box[4] == 'central rails':
-    #                 #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-    #                 #         Memory.previous_switch_left_front = 0
-    #                 #         Memory.previous_switch_right_front = 0
-    #                 #
-    #                 # elif box[4] == 'switch' and self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-    #                 #     # Memory.previous_switch_left_front = 0
-    #                 #     # Memory.previous_switch_right_front = 0
-    #                 #     pass
-    #                 #
-    #                 # elif box[4] == 'double central rails':
-    #                 #     cx1 = self.box_center_x(box) + int((box[2] - box[0]) / 4)
-    #                 #     cx2 = self.box_center_x(box) - int((box[2] - box[0]) / 4)
-    #                 #     cy = self.box_center_y(box)
-    #                 #
-    #                 #     if cx1 in range(int(Memory.init_box_detected[0]), int(Memory.init_box_detected[2])):
-    #                 #         cv2.circle(output_image, (cx1, cy), 40, (0, 255, 0), thickness=-1)
-    #                 #         Memory.current_frame_rails.append(box)
-    #                 #         Memory.previous_box[0] = self.box_center_x(box)
-    #                 #         Memory.init_box_detected = box
-    #                 #         Memory.init_box_detected[0] = self.box_center_x(box)
-    #                 #
-    #                 #     else:
-    #                 #         cv2.circle(output_image, (cx2, cy), 40, (0, 255, 0), thickness=-1)
-    #                 #         Memory.current_frame_rails.append(box)
-    #                 #         Memory.init_box_detected = box
-    #                 #         Memory.previous_box[2] = self.box_center_x(box)
-    #
-    #                 #############################
-    #                 # old version
-    #                 ###########################
-    #                 # if box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-    #                 #     Memory.previous_switch_right_front += 1
-    #                 #     Memory.between_frame_switch_front += 1
-    #                 #     Memory.init_box_detected = box
-    #                 #     Counter.between_frame_counter += 1
-    #                 #
-    #                 # elif box[4] == 'switch right front' and Memory.between_frame_switch_front == 0:
-    #                 #     Memory.previous_switch_right_front += 1
-    #                 #     Memory.between_frame_switch_front += 1
-    #                 #     Memory.init_box_detected = box
-    #                 #     Counter.between_frame_counter += 1
-    #                 #
-    #                 # elif box[4] == 'right crossing' and Memory.previous_switch_right_front >= 10:
-    #                 #     Memory.init_box_detected = box
-    #                 #
-    #                 # elif box[4] == 'switch left front':
-    #                 #     Memory.previous_switch_left_front += 1
-    #                 #
-    #                 # elif box[4] == 'left crossing' and Memory.previous_switch_left_front >= 10:
-    #                 #     Memory.init_box_detected = box
-    #                 #
-    #                 # elif box[4] == 'central rails':
-    #                 #     if self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-    #                 #         Memory.previous_switch_left_front = 0
-    #                 #         Memory.previous_switch_right_front = 0
-    #                 #
-    #                 # elif box[4] == 'switch' and self.init_current_rails(norm_boxes, box[4], output_image) == 1:
-    #                 #     # Memory.previous_switch_left_front = 0
-    #                 #     # Memory.previous_switch_right_front = 0
-    #                 #     pass
-    #                 #
-    #                 # elif box[4] == 'double central rails':
-    #                 #     if Memory.previous_switch >= 10:
-    #                 #         continue
-    #                 #     else:
-    #                 #         Memory.previous_switch_left_front = 0
-    #                 #         Memory.previous_switch_right_front = 0
-    #
-    #             else:
-    #                 # uncomment
-    #                 cv2.circle(output_image, (cx, cy), 40, (0, 255, 200), thickness=-1)
-    #                 Memory.current_frame_rails.append(box)
-    #                 # Memory.previous_box = box
-    #
-    #         else:
-    #             pass
-    #             # uncomment
-    #             cv2.circle(output_image, (cx, cy), 40, (0, 0, 255), thickness=-1)
-    #
-    #
     ###########################################################################
     # current rails in absolute coordinates #########################
     ###########################################################################
@@ -363,22 +87,20 @@ class display_train(object):
     def show_current_frame(self, norm_boxes, class_names, window_name='current'):
 
         output_image = self.video_loader.get_image()
-
-        filtred_boxes = analytics(norm_boxes, output_image)
-        # cv2.circle(output_image, (115, 115), 40, (0, 0, 255), thickness=-1)
-        no_boxes = True
+        frame_width = InputPlug.FrameWidth
+        frame_height = InputPlug.FrameHeight
+        rail_boxes = norm_boxes
+        crop_coors = np.int16(InputPlug.CropCoors * frame_height)
         timer1 = time.time()
+        filtred_boxes = analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image)
 
-        # normboxes = self.init_current_rails(normboxes, output_image)
-        # self.init_current_rails(normboxes, output_image)
-        # if not Memory.current_rails_detected:
-        #     self.init_current_rails(norm_boxes, "central rails", output_image)
-        # else:
-        #     self.continue_current_rails(norm_boxes, output_image)
-
-        # normboxes = Memory.current_frame_rails
+        # polygon = analytics(rail_boxes, crop_coors, frame_width, frame_height, output_image)
         # print(time.time() - timer1)
 
+        no_boxes = True
+
+        # uncomment
+        # вывод боксов
         for box in norm_boxes:
             box_class = int(box[4])
             class_name = class_names[box_class]
@@ -389,12 +111,12 @@ class display_train(object):
                         color=self.class_colours[box_class], thickness=1)
             text = class_names[box_class]
             cv2.putText(output_image, text, (int(box[0]), int(box[1]) + 10),
-                        self.font, 0.5, self.class_colours[box_class], thickness=2)
-
+                        self.font, 0.5, self.class_colours[box_class], thickness=1)
+        #
         for box in filtred_boxes:
 
             display_box(output_image, [box[0], box[1],
-                                       box[2], box[3]], color=(0, 255, 0), thickness=4)
+                                       box[2], box[3]], color=(0, 255, 0), thickness=2)
 
         return output_image
 
