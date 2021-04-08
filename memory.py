@@ -3,9 +3,9 @@ import numpy as np
 
 class Memory(object):
 
-    previous_data = []
+    previous_data1 = []
 
-    previous_data1 = np.array([[563, 624, 873, 720,  17],
+    previous_data = np.array([[563, 624, 873, 720,  17],
        [536, 624, 845, 720,  16],
        [574, 576, 868, 672,  17],
        [537, 576, 831, 672,  16],
@@ -42,8 +42,8 @@ class Memory(object):
 
     overlap = 0.3
     perspective = []
-    a_perspective = [[629,   0, 704,  16,   3]]
-    b_perspective = [[563, 624, 873, 720, 16]]
+    a_perspective = np.array([[629,   0, 704,  16,   3]])
+    b_perspective = np.array([[563, 624, 873, 720, 16]])
 
     x1_perspective = []
     x2_perspective = []

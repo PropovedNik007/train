@@ -20,7 +20,8 @@ from infer_utils.display_train import display_train
 # from infer_utils.display_train_overlap import display_train
 # from infer_utils.display_train_pandas import display_train
 from infer_utils.video_writer import *
-from main import analytics
+from main import get_norm_box, analytics
+from input_plug import *
 from process_classes.Class_pipeline import Class_pipeline
 from process_classes.utils import display_box
 from tracker_utils import *
@@ -170,10 +171,10 @@ class Task(threading.Thread):
         # ###############################################################################################3
 
         self.ret_opt["working_time"] = time.time()
-        Memory.between_frame_switch_front = 0
+
+
         while (self.opt["loader"].next_frame()):
-            Memory.between_frame_switch_front = 0
-            Counter.between_frame_counter = 0
+
             if self.is_run == False:
                 break
 
@@ -203,10 +204,11 @@ class Task(threading.Thread):
             #             for x in pred]
             #     nn_output.extend(pred)
 
-            nn_input = torch.zeros([1, 3, 64, 1280], dtype=torch.float16).cuda()
-            for line_input in self.opt['loader'].get_nn_input():
-                nn_input = torch.cat([nn_input, line_input.unsqueeze(0)])
-            nn_input = nn_input[1:]
+            # nn_input = torch.zeros([1, 3, 64, 1280], dtype=torch.float16).cuda()
+            # for line_input in self.opt['loader'].get_nn_input():
+            #     nn_input = torch.cat([nn_input, line_input.unsqueeze(0)])
+            # nn_input = nn_input[1:]
+            nn_input = self.opt['loader'].get_nn_input()
             pred = model(nn_input, augment=False)[0]
             pred = non_max_suppression(pred, self.opt["min_score"], self.opt["overlap"], agnostic=False, classes=None)
             nn_output = [x.detach().to('cpu') if x is not None else torch.tensor([]).view(-1, 6)
@@ -226,9 +228,13 @@ class Task(threading.Thread):
 
                 #
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"]) #unblock
-
-                norm_boxes = display.get_norm_box(boxes, self.opt["classes"])
-
+                # заглушка
+                frame_width = InputPlug.FrameWidth
+                frame_height = InputPlug.FrameHeight
+                crop_coors = np.int16(InputPlug.CropCoors * frame_height)
+                norm_timer1 = time.time()
+                norm_boxes = get_norm_box(boxes, crop_coors, frame_width, frame_height)
+                # print(time.time() - norm_timer1)
                 # display.make_norm_data(norm_boxes, frame_name, self.opt["classes"])
                 # output_image = display.show_filtred_frame(boxes, self.opt["classes"])
 
@@ -391,7 +397,7 @@ if __name__ == '__main__':
     opt["VideoFile"] = "video_teplovoz/1.mp4"
     # opt["VideoFile"] = "video_teplovoz/1.mp4"
     # opt["VideoFile"] = "video_teplovoz/123.mp4"
-    # opt["VideoFile"] = "video_teplovoz/1.mp4"
+    # opt["VideoFile"] = "video_teplovoz/123.mp4"
 
     # opt["VideoFile"] = "video_teplovoz/frontal1.mp4"
     # "/home/evgeny/work/project/lost_thing/ТЕСТ/Проход в запрещенную зону/CZ_LO_3_SIDE.avi",
